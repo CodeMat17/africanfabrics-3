@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Nunito, Geist } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Providers } from "./providers";
 import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { cn } from "@/lib/utils";
