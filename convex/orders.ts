@@ -237,8 +237,8 @@ export const remove = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
 
-    const role = (identity as { role?: string }).role ??
-      (identity.customClaims?.role as string | undefined);
+    const claims = identity.customClaims as { role?: string } | undefined;
+    const role = (identity as unknown as { role?: string }).role ?? claims?.role;
     if (role !== "admin") throw new Error("Only admins can delete orders");
 
     await ctx.db.delete(args.orderId);
