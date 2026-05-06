@@ -7,7 +7,6 @@ const maleMeasurementsValidator = v.object({
   chestAtAmpits: v.optional(v.string()),
   waist: v.optional(v.string()),
   hips: v.optional(v.string()),
-  shoulder: v.optional(v.string()),
   sleeveLength: v.optional(v.string()),
   topLength: v.optional(v.string()),
   trouserWaist: v.optional(v.string()),

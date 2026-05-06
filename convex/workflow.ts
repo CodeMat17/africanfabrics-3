@@ -66,6 +66,12 @@ export const assignStaff = mutation({
       qc: "assignedQCId",
     };
 
+    // Free the previous stage's staff member if there is one
+    const previousStaffId = order[stageToField[order.workflowStage] as keyof typeof order] as Id<"staff"> | undefined;
+    if (previousStaffId && previousStaffId !== args.staffId) {
+      await ctx.db.patch(previousStaffId, { isBusy: false, assignedOrderId: undefined });
+    }
+
     const orderPatch: Record<string, unknown> = {
       workflowStage: args.stage,
       status: "in_progress",

@@ -31,7 +31,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-type MaleMeasurements = { chest?: string; chestAtAmpits?: string; waist?: string; hips?: string; shoulder?: string; sleeveLength?: string; topLength?: string; trouserWaist?: string; trouserLength?: string; thigh?: string; calf?: string; forehead?: string; forearm?: string; wrist?: string; torsoCircum?: string; pantsLength?: string; thighAtCrotch?: string; midThigh?: string; knee?: string; belowKnee?: string; ankle?: string; biceps?: string; elbow?: string; shoulders?: string; neck?: string };
+type MaleMeasurements = { chest?: string; chestAtAmpits?: string; waist?: string; hips?: string; sleeveLength?: string; topLength?: string; trouserWaist?: string; trouserLength?: string; thigh?: string; calf?: string; forehead?: string; forearm?: string; wrist?: string; torsoCircum?: string; pantsLength?: string; thighAtCrotch?: string; midThigh?: string; knee?: string; belowKnee?: string; ankle?: string; biceps?: string; elbow?: string; shoulders?: string; neck?: string };
 type FemaleMeasurements = { bust?: string; waist?: string; hips?: string; shoulders?: string; sleeveLength?: string; topLength?: string; skirtLength?: string; thigh?: string; neck?: string; overBust?: string; underBust?: string; neckToHeel?: string; neckToAboveKnee?: string; armLength?: string; shoulderSeam?: string; armHole?: string; foreArm?: string; vNeckCut?: string; aboveKneeToAnkle?: string; waistToAboveKnee?: string; blouseLength?: string };
 
 const pageVariants = {
@@ -42,26 +42,53 @@ const pageVariants = {
 
 const defaultMale: MaleMeasurements = {
   chest: "",
+  chestAtAmpits: "",
   waist: "",
   hips: "",
-  shoulder: "",
+  shoulders: "",
+  neck: "",
   sleeveLength: "",
   topLength: "",
   trouserWaist: "",
   trouserLength: "",
   thigh: "",
   calf: "",
+  forehead: "",
+  forearm: "",
+  wrist: "",
+  torsoCircum: "",
+  pantsLength: "",
+  thighAtCrotch: "",
+  midThigh: "",
+  knee: "",
+  belowKnee: "",
+  ankle: "",
+  biceps: "",
+  elbow: "",
 };
 
 const defaultFemale: FemaleMeasurements = {
   bust: "",
+  overBust: "",
+  underBust: "",
   waist: "",
   hips: "",
   shoulders: "",
+  neck: "",
   sleeveLength: "",
   topLength: "",
   skirtLength: "",
   thigh: "",
+  neckToHeel: "",
+  neckToAboveKnee: "",
+  armLength: "",
+  shoulderSeam: "",
+  armHole: "",
+  foreArm: "",
+  vNeckCut: "",
+  aboveKneeToAnkle: "",
+  waistToAboveKnee: "",
+  blouseLength: "",
 };
 
 interface FormData {
@@ -309,7 +336,7 @@ export default function NewOrderPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2  gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number *</Label>
                       <Input
@@ -470,7 +497,7 @@ export default function NewOrderPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {(
                       Object.keys(getCurrentMeasurements()) as string[]
                     ).map((key) => (
