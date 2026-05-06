@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Users, Scissors, Sparkles, Ruler, ShieldCheck, CircleDot, Loader2, UserPlus, Pencil, Trash2 } from "lucide-react";
+import StaffLoading from "./loading";
+import { toast } from "sonner";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -132,12 +134,17 @@ function AddStaffDialog() {
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
       });
+      toast.success("Staff member added");
       setOpen(false);
       setName("");
       setRole("");
       setSecondaryRoles([]);
       setPhone("");
       setEmail("");
+    } catch (e) {
+      toast.error("Failed to add staff member", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setLoading(false);
     }
@@ -246,7 +253,12 @@ function EditStaffDialog({ member }: { member: Staff }) {
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
       });
+      toast.success("Staff member updated");
       setOpen(false);
+    } catch (e) {
+      toast.error("Failed to update staff member", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setLoading(false);
     }
@@ -349,6 +361,11 @@ function DeleteStaffButton({ member }: { member: Staff }) {
     setLoading(true);
     try {
       await deactivate({ staffId: member._id as Id<"staff"> });
+      toast.success("Staff member deactivated");
+    } catch (e) {
+      toast.error("Failed to deactivate staff member", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setLoading(false);
       setConfirming(false);
@@ -396,13 +413,7 @@ export default function StaffPage() {
   const staff = useQuery(api.staff.list, {});
   const orders = useQuery(api.orders.listAll);
 
-  if (staff === undefined || orders === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-muted-foreground" size={32} />
-      </div>
-    );
-  }
+  if (staff === undefined || orders === undefined) return <StaffLoading />;
 
   const totalStaff = staff.length;
   const busyStaff = staff.filter((s) => s.isBusy).length;

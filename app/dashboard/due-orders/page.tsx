@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock, AlertTriangle, CheckCircle2, CalendarClock, Loader2 } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, CalendarClock } from "lucide-react";
+import DueOrdersLoading from "./loading";
 import { format, differenceInDays } from "date-fns";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -86,13 +87,7 @@ export default function DueOrdersPage() {
   const orders = useQuery(api.orders.listAll);
   const today = new Date();
 
-  if (orders === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-muted-foreground" size={32} />
-      </div>
-    );
-  }
+  if (orders === undefined) return <DueOrdersLoading />;
 
   const active = orders.filter(
     (o) => o.status !== "collected" && o.status !== "completed"

@@ -25,15 +25,16 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Show, UserButton, useUser } from "@clerk/nextjs";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/new-order", label: "New Order", icon: PlusCircle },
+  { href: "/dashboard/new-order", label: "New Order", icon: PlusCircle, adminOnly: true },
   { href: "/dashboard/orders", label: "Orders", icon: ClipboardList },
-  { href: "/dashboard/workflow", label: "Workflow", icon: GitBranch },
+  { href: "/dashboard/workflow", label: "Workflow", icon: GitBranch, adminOnly: true },
   { href: "/dashboard/due-orders", label: "Due Orders", icon: Clock },
-  { href: "/dashboard/staff", label: "Staff", icon: Users },
+  { href: "/dashboard/staff", label: "Staff", icon: Users, superAdminOnly: true },
 ];
 
 function NavLink({
@@ -68,10 +69,9 @@ function NavLink({
 }
 
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="w-9 h-9" />;
+  const { resolvedTheme, setTheme } = useTheme();
+  if (!resolvedTheme) return <div className="w-9 h-9" />;
+  const theme = resolvedTheme;
   return (
     <Button
       variant="ghost"
@@ -108,6 +108,16 @@ function ThemeToggle() {
 }
 
 function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
+  const { user } = useUser();
+  const role = user?.publicMetadata?.role as string | undefined;
+  const canCreateOrder = role === "admin" || role === "consultant";
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.superAdminOnly) return role === "admin";
+    if (item.adminOnly) return canCreateOrder;
+    return true;
+  });
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
@@ -123,7 +133,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto" aria-label="Main navigation">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink key={item.href} item={item} onClick={onNavClick} />
         ))}
       </nav>
@@ -145,34 +155,32 @@ export default function DashboardLayout({
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className='flex h-screen overflow-hidden bg-background'>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-sidebar shrink-0 border-r border-sidebar-border">
+      <aside className='hidden lg:flex flex-col w-64 bg-sidebar shrink-0 border-r border-sidebar-border'>
         <SidebarContent />
       </aside>
 
       {/* Main Area */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className='flex flex-col flex-1 overflow-hidden'>
         {/* Navbar */}
-        <header className="h-16 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 z-10">
-          <div className="flex items-center gap-3">
+        <header className='h-16 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 z-10'>
+          <div className='flex items-center gap-3'>
             {/* Mobile menu */}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden rounded-xl"
-                  aria-label="Open navigation menu"
-                >
-                  <Menu size={20} aria-hidden="true" />
+                  variant='ghost'
+                  size='icon'
+                  className='lg:hidden rounded-xl'
+                  aria-label='Open navigation menu'>
+                  <Menu size={20} aria-hidden='true' />
                 </Button>
               </SheetTrigger>
               <SheetContent
-                side="left"
-                className="w-full max-w-full sm:max-w-full p-0 bg-sidebar border-sidebar-border"
-              >
-                <SheetHeader className="sr-only">
+                side='left'
+                className='w-full max-w-full sm:max-w-full p-0 bg-sidebar border-sidebar-border'>
+                <SheetHeader className='sr-only'>
                   <SheetTitle>Navigation Menu</SheetTitle>
                 </SheetHeader>
                 <SidebarContent onNavClick={() => setSheetOpen(false)} />
@@ -180,27 +188,32 @@ export default function DashboardLayout({
             </Sheet>
 
             {/* Mobile brand */}
-            <div className="flex items-center gap-2 lg:hidden">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Scissors size={16} className="text-primary-foreground" />
+            <div className='flex items-center gap-2 lg:hidden'>
+              <div className='w-8 h-8 rounded-lg bg-primary flex items-center justify-center'>
+                <Scissors size={16} className='text-primary-foreground' />
               </div>
-              <span className="font-bold text-foreground">AFD Guru</span>
+              <span className='font-bold text-foreground'>AFD Guru</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <div className='flex items-center gap-2'>
+              <ThemeToggle />
+            </div>
+
+            <Show when='signed-in'>
+              <UserButton />
+            </Show>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className='flex-1 overflow-y-auto'>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="p-4 lg:p-6 min-h-full"
-          >
+            className='p-4 lg:p-6 min-h-full'>
             {children}
           </motion.div>
         </main>

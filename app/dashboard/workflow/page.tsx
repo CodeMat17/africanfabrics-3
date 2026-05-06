@@ -13,12 +13,14 @@ import {
   CircleDot,
   PackageCheck,
   GitBranch,
-  Loader2,
   ExternalLink,
   UserCheck,
+  Loader2,
 } from "lucide-react";
+import WorkflowLoading from "./loading";
 import Link from "next/link";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -401,13 +403,7 @@ export default function WorkflowPage() {
   // Track which order is currently being marked done
   const [markingDoneId, setMarkingDoneId] = useState<Id<"orders"> | null>(null);
 
-  if (orders === undefined || staff === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-muted-foreground" size={32} />
-      </div>
-    );
-  }
+  if (orders === undefined || staff === undefined) return <WorkflowLoading />;
 
   const activeOrders = orders.filter(
     (o) => o.status !== "collected" && o.workflowStage !== "done"
@@ -450,10 +446,13 @@ export default function WorkflowPage() {
         staffId: selectedStaff,
         stage: ROLE_TO_STAGE[pendingAssignment.role],
       });
+      toast.success("Staff assigned successfully");
       setPendingAssignment(null);
       setSelectedStaff(undefined);
     } catch (e) {
-      setAssignError(e instanceof Error ? e.message : "Assignment failed");
+      const msg = e instanceof Error ? e.message : "Assignment failed";
+      setAssignError(msg);
+      toast.error("Failed to assign staff", { description: msg });
     } finally {
       setIsAssigning(false);
     }
@@ -469,6 +468,7 @@ export default function WorkflowPage() {
     setMarkingDoneId(orderId);
     try {
       await advanceStage({ orderId, toStage });
+      toast.success(order.workflowStage === "qc" ? "QC passed" : "Stage advanced");
       // After marking done, immediately open the assignment dialog for the next stage
       if (nextRole) {
         setPendingAssignment({
@@ -479,6 +479,10 @@ export default function WorkflowPage() {
         setSelectedStaff(undefined);
         setAssignError(null);
       }
+    } catch (e) {
+      toast.error("Failed to advance stage", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setMarkingDoneId(null);
     }

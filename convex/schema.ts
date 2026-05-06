@@ -25,6 +25,7 @@ const maleMeasurements = v.object({
   biceps: v.optional(v.string()),
   elbow: v.optional(v.string()),
   shoulders: v.optional(v.string()),
+  shoulder: v.optional(v.string()),
   neck: v.optional(v.string()),
 });
 

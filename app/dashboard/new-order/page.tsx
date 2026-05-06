@@ -18,6 +18,7 @@ import {
 import { format } from "date-fns";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -239,7 +240,12 @@ export default function NewOrderPage() {
           formData.gender === "female" ? formData.femaleMeasurements : undefined,
       });
 
+      toast.success("Order created successfully");
       router.push("/dashboard/orders");
+    } catch (e) {
+      toast.error("Failed to create order", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -329,6 +335,7 @@ export default function NewOrderPage() {
                       value={formData.name}
                       onChange={(e) => updateFormData("name", e.target.value)}
                       placeholder="Enter full name"
+                      maxLength={25}
                       className={errors.name ? "border-red-400" : ""}
                     />
                     {errors.name && (
@@ -381,6 +388,7 @@ export default function NewOrderPage() {
                         updateFormData("garmentType", e.target.value)
                       }
                       placeholder="e.g., Agbada, Kaftan, Suit"
+                      maxLength={15}
                       className={errors.garmentType ? "border-red-400" : ""}
                     />
                     {errors.garmentType && (
@@ -656,6 +664,7 @@ export default function NewOrderPage() {
                         updateFormData("specialInstructions", e.target.value)
                       }
                       placeholder="Any special requirements or notes..."
+                      maxLength={50}
                       rows={3}
                     />
                   </div>

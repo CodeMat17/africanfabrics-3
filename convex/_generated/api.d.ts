@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as importOrders from "../importOrders.js";
 import type * as orders from "../orders.js";
 import type * as staff from "../staff.js";
 import type * as workflow from "../workflow.js";
@@ -20,7 +19,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  importOrders: typeof importOrders;
   orders: typeof orders;
   staff: typeof staff;
   workflow: typeof workflow;

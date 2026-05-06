@@ -10,7 +10,6 @@ import {
   Phone,
   Mail,
   Scissors,
-  Loader2,
   ExternalLink,
   User,
   FileText,
@@ -20,6 +19,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { toast } from "sonner";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -44,6 +44,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import Image from "next/image";
+import OrdersLoading from "./loading";
 
 type Order = Doc<"orders">;
 type Staff = Doc<"staff">;
@@ -414,7 +415,18 @@ function OrderCard({ order, staff, onViewDetails }: {
           <div className="flex gap-3 justify-end mt-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
             <Button
-              onClick={async () => { await markCollected({ orderId: order._id }); setConfirmOpen(false); }}
+              onClick={async () => {
+              try {
+                await markCollected({ orderId: order._id });
+                toast.success("Order marked as collected");
+              } catch (e) {
+                toast.error("Failed to mark order as collected", {
+                  description: e instanceof Error ? e.message : undefined,
+                });
+              } finally {
+                setConfirmOpen(false);
+              }
+            }}
               className="bg-teal-600 hover:bg-teal-700 text-white"
             >
               <PackageCheck size={16} className="mr-2" aria-hidden="true" /> Confirm Collection
@@ -443,13 +455,7 @@ export default function OrdersPage() {
   const [detailOrderId, setDetailOrderId] = useState<Id<"orders"> | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  if (orders === undefined || staff === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-muted-foreground" size={32} aria-label="Loading orders" />
-      </div>
-    );
-  }
+  if (orders === undefined || staff === undefined) return <OrdersLoading />;
 
   const filtered = orders.filter((o) => {
     const matchesSearch =

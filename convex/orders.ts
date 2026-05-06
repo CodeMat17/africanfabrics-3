@@ -234,6 +234,12 @@ export const updateDetails = mutation({
 export const remove = mutation({
   args: { orderId: v.id("orders") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const role = (identity as { role?: string }).role ?? identity.customClaims?.role;
+    if (role !== "admin") throw new Error("Only admins can delete orders");
+
     await ctx.db.delete(args.orderId);
   },
 });
@@ -248,6 +254,8 @@ export const getFabricPhotoUrl = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
     return await ctx.storage.generateUploadUrl();
   },
 });

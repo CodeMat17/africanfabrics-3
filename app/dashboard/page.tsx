@@ -9,8 +9,8 @@ import {
   ShoppingBag,
   TrendingUp,
   ArrowRight,
-  Loader2,
 } from "lucide-react";
+import DashboardLoading from "./loading";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,13 +32,7 @@ export default function DashboardPage() {
   const orders = useQuery(api.orders.listAll);
   const today = new Date();
 
-  if (orders === undefined) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-muted-foreground" size={32} />
-      </div>
-    );
-  }
+  if (orders === undefined) return <DashboardLoading />;
 
   const stats = {
     total: orders.length,
