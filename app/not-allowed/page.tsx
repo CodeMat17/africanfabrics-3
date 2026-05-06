@@ -13,7 +13,7 @@ export default function NotAllowedPage() {
         </div>
 
         <h1 className='text-3xl font-bold tracking-tight'>
-          Access Not Allowed
+          Access Not Allowed!
         </h1>
 
         <p className='text-muted-foreground text-sm'>
