@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 type OrderStatus = "pending" | "in_progress" | "ready_for_qc" | "completed" | "collected";
@@ -46,7 +46,7 @@ import {
 import Image from "next/image";
 import OrdersLoading from "./loading";
 
-type Order = Omit<Doc<"orders">, "maleMeasurements" | "femaleMeasurements">;
+type Order = Omit<Doc<"orders">, "maleMeasurements" | "femaleMeasurements" | "specialInstructions" | "completedAt" | "collectedAt">;
 type FullOrder = Doc<"orders">;
 type Staff = Doc<"staff">;
 
@@ -446,12 +446,17 @@ const filterLabels: Record<string, string> = {
 const PAGE_SIZE = 20;
 
 export default function OrdersPage() {
-  const orders = useQuery(api.orders.listAllSummaries);
-  const staff = useQuery(api.staff.list, {});
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "all">("all");
   const [detailOrderId, setDetailOrderId] = useState<Id<"orders"> | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const { results: orders, status: queryStatus, loadMore } = usePaginatedQuery(
+    api.orders.listCards,
+    { status: activeFilter === "all" ? undefined : activeFilter },
+    { initialNumItems: PAGE_SIZE },
+  );
+
+  const staff = useQuery(api.staff.list, {});
 
   // Fetch full order (with measurements) only when detail sheet is open
   const detailOrder = useQuery(
@@ -459,20 +464,18 @@ export default function OrdersPage() {
     detailOrderId ? { orderId: detailOrderId } : "skip"
   );
 
-  // Collect all storageIds on the current page to batch-fetch URLs
-  const filtered = (orders ?? []).filter((o) => {
-    const matchesSearch =
-      o.clientName.toLowerCase().includes(search.toLowerCase()) ||
-      o.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      o.garmentType.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch && (activeFilter === "all" || o.status === activeFilter);
+  // Client-side search within all loaded results
+  const filtered = orders.filter((o) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      o.clientName.toLowerCase().includes(q) ||
+      o.orderNumber.toLowerCase().includes(q) ||
+      o.garmentType.toLowerCase().includes(q)
+    );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const storageIds = paginated
+  const storageIds = filtered
     .map((o) => o.fabricPhotoStorageId)
     .filter((id): id is Id<"_storage"> => id !== undefined);
 
@@ -491,7 +494,7 @@ export default function OrdersPage() {
     ? (detailPhotoUrlResult?.[detailStorageId] ?? null)
     : null;
 
-  if (orders === undefined || staff === undefined) return <OrdersLoading />;
+  if (queryStatus === "LoadingFirstPage" || staff === undefined) return <OrdersLoading />;
 
   return (
     <>
@@ -499,7 +502,7 @@ export default function OrdersPage() {
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-            <p className="text-muted-foreground mt-1">{orders.length} total order{orders.length !== 1 && "s"}</p>
+            <p className="text-muted-foreground mt-1">{filtered.length} order{filtered.length !== 1 && "s"} loaded</p>
           </div>
 
         </motion.div>
@@ -543,7 +546,7 @@ export default function OrdersPage() {
             </motion.div>
           ) : (
             <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {paginated.map((order) => (
+              {filtered.map((order) => (
                 <OrderCard
                   key={order._id}
                   order={order}
@@ -556,16 +559,12 @@ export default function OrdersPage() {
           )}
         </AnimatePresence>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-sm text-muted-foreground">
-              Page {safePage} of {totalPages} &middot; {filtered.length} order{filtered.length !== 1 && "s"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>Previous</Button>
-              <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>Next</Button>
-            </div>
+        {/* Load More */}
+        {queryStatus === "CanLoadMore" && (
+          <div className="flex justify-center pt-2">
+            <Button variant="outline" size="sm" onClick={() => loadMore(PAGE_SIZE)}>
+              Load more orders
+            </Button>
           </div>
         )}
       </div>

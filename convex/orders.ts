@@ -156,7 +156,11 @@ export const create = mutation({
     femaleMeasurements: v.optional(femaleMeasurementsValidator),
   },
   handler: async (ctx, args) => {
-    const latest = await ctx.db.query("orders").order("desc").take(1);
+    const latest = await ctx.db
+      .query("orders")
+      .withIndex("by_order_number")
+      .order("desc")
+      .take(1);
     const nextNum = latest.length === 0
       ? 1
       : parseInt(latest[0].orderNumber.split("-")[1], 10) + 1;
@@ -256,12 +260,12 @@ export const getFabricPhotoUrls = query({
   },
 });
 
-// Returns all orders without measurement fields — same reads as listAll but
-// ~90% smaller payload since measurements are omitted from the response.
+// Fetches all orders without measurement fields for pages that filter client-side
+// (workflow, due-orders, staff). Use listOrderSummaries for paginated list views.
 export const listAllSummaries = query({
   args: {},
   handler: async (ctx) => {
-    const orders = await ctx.db.query("orders").order("desc").take(2000);
+    const orders = await ctx.db.query("orders").order("desc").collect();
     return orders.map(({ maleMeasurements: _m, femaleMeasurements: _f, ...summary }) => summary);
   },
 });
@@ -282,27 +286,67 @@ export const listOrderSummaries = query({
   },
 });
 
-// Lightweight stats for the dashboard — returns only counts, not documents.
+// Card-level data for the orders list page. Strips measurements, specialInstructions,
+// completedAt, and collectedAt — those are only fetched on-demand via getById.
+// Supports optional server-side status filtering via the by_status index.
+export const listCards = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    status: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("in_progress"),
+      v.literal("ready_for_qc"),
+      v.literal("completed"),
+      v.literal("collected"),
+    )),
+  },
+  handler: async (ctx, args) => {
+    const baseQuery = args.status
+      ? ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", args.status!))
+      : ctx.db.query("orders");
+    const page = await baseQuery.order("desc").paginate(args.paginationOpts);
+    return {
+      ...page,
+      page: page.page.map(({
+        maleMeasurements: _m,
+        femaleMeasurements: _f,
+        specialInstructions: _si,
+        completedAt: _ca,
+        collectedAt: _co,
+        ...card
+      }) => card),
+    };
+  },
+});
+
+// Lightweight stats for the dashboard — uses per-status index queries to avoid
+// fetching full documents. Each status bucket is counted independently.
 export const getOrderStats = query({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
     const dueThreshold = now + 4 * 24 * 60 * 60 * 1000;
-    const all = await ctx.db.query("orders").take(2000);
-    let total = 0, pending = 0, inProgress = 0, completed = 0, collected = 0, due = 0;
-    for (const o of all) {
-      total++;
-      if (o.status === "pending") pending++;
-      else if (o.status === "in_progress" || o.status === "ready_for_qc") inProgress++;
-      else if (o.status === "completed") completed++;
-      else if (o.status === "collected") collected++;
-      if (
-        o.status !== "collected" &&
-        o.status !== "completed" &&
-        o.collectionDate <= dueThreshold
-      ) due++;
-    }
-    return { total, pending, inProgress, completed, collected, due };
+
+    const [pendingOrders, inProgressOrders, readyForQCOrders, completedOrders, collectedOrders] =
+      await Promise.all([
+        ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "pending")).collect(),
+        ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "in_progress")).collect(),
+        ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "ready_for_qc")).collect(),
+        ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "completed")).collect(),
+        ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "collected")).collect(),
+      ]);
+
+    const activeOrders = [...pendingOrders, ...inProgressOrders, ...readyForQCOrders];
+    const due = activeOrders.filter((o) => o.collectionDate <= dueThreshold).length;
+
+    return {
+      total: pendingOrders.length + inProgressOrders.length + readyForQCOrders.length + completedOrders.length + collectedOrders.length,
+      pending: pendingOrders.length,
+      inProgress: inProgressOrders.length + readyForQCOrders.length,
+      completed: completedOrders.length,
+      collected: collectedOrders.length,
+      due,
+    };
   },
 });
 

@@ -13,9 +13,14 @@ const roleValidator = v.union(
 export const list = query({
   args: { includeInactive: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    const all = await ctx.db.query("staff").take(200);
-    if (args.includeInactive) return all;
-    return all.filter((s) => s.isActive);
+    if (args.includeInactive) {
+      return await ctx.db.query("staff").collect();
+    }
+    return await ctx.db
+      .query("staff")
+      .withIndex("by_busy")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
   },
 });
 
@@ -29,10 +34,18 @@ export const getById = query({
 export const listByRole = query({
   args: { role: roleValidator },
   handler: async (ctx, args) => {
-    const all = await ctx.db.query("staff").take(200);
-    const active = all.filter((s) => s.isActive);
-    const primary = active.filter((s) => s.role === args.role);
-    const secondary = active.filter(
+    const primary = await ctx.db
+      .query("staff")
+      .withIndex("by_role", (q) => q.eq("role", args.role))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    // secondaryRoles is an array field — not indexable, so a filtered full scan
+    // is the only way to find staff whose secondary role matches.
+    const allActive = await ctx.db
+      .query("staff")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    const secondary = allActive.filter(
       (s) => s.role !== args.role && s.secondaryRoles?.includes(args.role)
     );
     return [...primary, ...secondary];
@@ -42,10 +55,19 @@ export const listByRole = query({
 export const listAvailable = query({
   args: { role: roleValidator },
   handler: async (ctx, args) => {
-    const all = await ctx.db.query("staff").take(200);
-    const active = all.filter((s) => s.isActive && !s.isBusy);
-    const primary = active.filter((s) => s.role === args.role);
-    const secondary = active.filter(
+    const primary = await ctx.db
+      .query("staff")
+      .withIndex("by_role_and_busy", (q) =>
+        q.eq("role", args.role).eq("isBusy", false)
+      )
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    const allAvailable = await ctx.db
+      .query("staff")
+      .withIndex("by_busy", (q) => q.eq("isBusy", false))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    const secondary = allAvailable.filter(
       (s) => s.role !== args.role && s.secondaryRoles?.includes(args.role)
     );
     return [...primary, ...secondary];
