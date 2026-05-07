@@ -75,7 +75,7 @@ function isInstalled(): boolean {
 export function PwaInstallPrompt() {
   useEffect(() => {
     if (isInstalled()) return;
-    if (sessionStorage.getItem(DISMISSED_KEY)) return;
+    if (localStorage.getItem(DISMISSED_KEY)) return;
 
     let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
@@ -84,15 +84,13 @@ export function PwaInstallPrompt() {
       toast.dismiss(toastId);
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "dismissed") {
-        sessionStorage.setItem(DISMISSED_KEY, "1");
-      }
+      localStorage.setItem(DISMISSED_KEY, "1");
       deferredPrompt = null;
     };
 
     const handleDismiss = (toastId: string | number) => {
       toast.dismiss(toastId);
-      sessionStorage.setItem(DISMISSED_KEY, "1");
+      localStorage.setItem(DISMISSED_KEY, "1");
     };
 
     const showToast = () => {
