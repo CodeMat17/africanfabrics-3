@@ -516,7 +516,7 @@ export default function OrdersPage() {
               id="order-search"
               placeholder="Search by name, order ID, or garment…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => { setSearch(e.target.value); }}
               className="pl-9"
             />
           </div>
@@ -524,7 +524,7 @@ export default function OrdersPage() {
             {ALL_FILTERS.map((f) => (
               <button
                 key={f}
-                onClick={() => { setActiveFilter(f); setCurrentPage(1); }}
+                onClick={() => { setActiveFilter(f); }}
                 aria-pressed={activeFilter === f}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
                   activeFilter === f ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:bg-muted/80"
