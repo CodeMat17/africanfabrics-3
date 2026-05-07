@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
         hostname: "*.convex.site",
       },
     ],
-    formats: ["image/avif", "image/webp"],
+    formats: ["image/webp"],
   },
   async headers() {
     return [
@@ -26,6 +26,13 @@ const nextConfig: NextConfig = {
         source: "/:path*.webp",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [
+          { key: "Content-Type", value: "application/manifest+json" },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         ],
       },
     ];

@@ -14,6 +14,7 @@ import {
   Scissors,
   Moon,
   Sun,
+  Home,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -29,12 +30,14 @@ import { useState } from "react";
 import { Show, UserButton, useUser } from "@clerk/nextjs";
 
 const navItems = [
+  { href: "/", label: "Homepage", icon: Home, exact: true },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/new-order", label: "New Order", icon: PlusCircle, adminOnly: true },
   { href: "/dashboard/orders", label: "Orders", icon: ClipboardList },
   { href: "/dashboard/workflow", label: "Workflow", icon: GitBranch, adminOnly: true },
   { href: "/dashboard/due-orders", label: "Due Orders", icon: Clock },
   { href: "/dashboard/staff", label: "Staff", icon: Users, superAdminOnly: true },
+   
 ];
 
 function NavLink({

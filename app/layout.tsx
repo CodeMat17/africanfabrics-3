@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito, Geist } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans', display: 'swap'});
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -25,6 +24,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://afdguru.com"),
   title: {
     default: "AFD Guru — Tailoring Management",
     template: "%s | AFD Guru",
@@ -34,6 +34,19 @@ export const metadata: Metadata = {
   applicationName: "AFD Guru",
   authors: [{ name: "AFD Guru" }],
   robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AFD Guru",
+  },
   openGraph: {
     type: "website",
     siteName: "AFD Guru",
@@ -53,7 +66,7 @@ export default function RootLayout({
     <html
       lang='en'
       suppressHydrationWarning
-      className={cn("h-full", "antialiased", nunito.variable, "font-sans", geist.variable)}>
+      className={cn("h-full", "antialiased", nunito.variable)}>
       <body className='min-h-full flex flex-col'>
       
           <ThemeProvider
@@ -66,6 +79,7 @@ export default function RootLayout({
             </ClerkProvider>
 
             <Toaster />
+            <PwaInstallPrompt />
           </ThemeProvider>
       
       </body>
