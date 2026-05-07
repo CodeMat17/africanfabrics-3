@@ -84,7 +84,7 @@ function DueOrderRow({ order }: { order: Order }) {
 }
 
 export default function DueOrdersPage() {
-  const orders = useQuery(api.orders.listAllSummaries);
+  const orders = useQuery(api.orders.listActiveSummaries);
   const today = new Date();
 
   if (orders === undefined) return <DueOrdersLoading />;

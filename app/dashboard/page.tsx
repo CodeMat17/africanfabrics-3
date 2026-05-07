@@ -13,7 +13,6 @@ import {
 import DashboardLoading from "./loading";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Doc } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -31,7 +30,7 @@ const item = {
 
 export default function DashboardPage() {
   const stats = useQuery(api.orders.getOrderStats);
-  const recentPage = useQuery(api.orders.list, {
+  const recentPage = useQuery(api.orders.listOrderSummaries, {
     paginationOpts: { numItems: 5, cursor: null },
   });
 
@@ -88,7 +87,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const recentOrders = recentPage.page as Doc<"orders">[];
+  const recentOrders = recentPage.page;
 
   const statusColors: Record<string, string> = {
     pending: "bg-primary/15 text-primary dark:bg-primary/20",

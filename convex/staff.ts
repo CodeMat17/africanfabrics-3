@@ -24,6 +24,20 @@ export const list = query({
   },
 });
 
+// Lightweight staff list — omits phone and email. Use on pages that only need
+// name/role/availability for assignment dropdowns.
+export const listLite = query({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db
+      .query("staff")
+      .withIndex("by_busy")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    return all.map(({ phone: _p, email: _e, ...lite }) => lite);
+  },
+});
+
 export const getById = query({
   args: { staffId: v.id("staff") },
   handler: async (ctx, args) => {

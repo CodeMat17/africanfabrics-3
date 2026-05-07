@@ -260,18 +260,24 @@ export const getFabricPhotoUrls = query({
   },
 });
 
-// Fetches all orders without measurement fields for pages that filter client-side
-// (workflow, due-orders, staff). Use listOrderSummaries for paginated list views.
-export const listAllSummaries = query({
+// Fetches only active (non-collected, non-completed) orders without measurement
+// fields. Used by workflow, due-orders, and staff pages which only care about
+// in-flight orders and filter client-side.
+export const listActiveSummaries = query({
   args: {},
   handler: async (ctx) => {
-    const orders = await ctx.db.query("orders").order("desc").collect();
-    return orders.map(({ maleMeasurements: _m, femaleMeasurements: _f, ...summary }) => summary);
+    const [pending, inProgress, readyForQC] = await Promise.all([
+      ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "pending")).collect(),
+      ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "in_progress")).collect(),
+      ctx.db.query("orders").withIndex("by_status", (q) => q.eq("status", "ready_for_qc")).collect(),
+    ]);
+    return [...pending, ...inProgress, ...readyForQC].map(
+      ({ maleMeasurements: _m, femaleMeasurements: _f, ...summary }) => summary
+    );
   },
 });
 
-// Paginated version of listAllSummaries — use this when you only need the
-// current page (e.g. a dedicated orders list page).
+// Paginated orders without measurements — use for list views that need a cursor.
 export const listOrderSummaries = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {

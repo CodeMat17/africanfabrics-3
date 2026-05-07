@@ -382,8 +382,8 @@ function StagePagination({ orders, page, onPage }: { orders: Order[]; page: numb
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkflowPage() {
-  const orders = useQuery(api.orders.listAllSummaries);
-  const staff = useQuery(api.staff.list, {});
+  const orders = useQuery(api.orders.listActiveSummaries);
+  const staff = useQuery(api.staff.listLite);
 
   const assignStaff = useMutation(api.workflow.assignStaff);
   const advanceStage = useMutation(api.workflow.advanceStage);

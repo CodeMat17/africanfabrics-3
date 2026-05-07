@@ -411,7 +411,7 @@ function DeleteStaffButton({ member }: { member: Staff }) {
 
 export default function StaffPage() {
   const staff = useQuery(api.staff.list, {});
-  const orders = useQuery(api.orders.listAllSummaries);
+  const orders = useQuery(api.orders.listActiveSummaries);
 
   if (staff === undefined || orders === undefined) return <StaffLoading />;
 
