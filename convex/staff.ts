@@ -29,47 +29,26 @@ export const getById = query({
 export const listByRole = query({
   args: { role: roleValidator },
   handler: async (ctx, args) => {
-    const primary = await ctx.db
-      .query("staff")
-      .withIndex("by_role", (q) => q.eq("role", args.role))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .take(100);
-
     const all = await ctx.db.query("staff").take(200);
-    const secondary = all.filter(
-      (s) =>
-        s.isActive &&
-        s.role !== args.role &&
-        s.secondaryRoles?.includes(args.role)
+    const active = all.filter((s) => s.isActive);
+    const primary = active.filter((s) => s.role === args.role);
+    const secondary = active.filter(
+      (s) => s.role !== args.role && s.secondaryRoles?.includes(args.role)
     );
-
-    const seen = new Set(primary.map((s) => s._id));
-    return [...primary, ...secondary.filter((s) => !seen.has(s._id))];
+    return [...primary, ...secondary];
   },
 });
 
 export const listAvailable = query({
   args: { role: roleValidator },
   handler: async (ctx, args) => {
-    const primary = await ctx.db
-      .query("staff")
-      .withIndex("by_role_and_busy", (q) =>
-        q.eq("role", args.role).eq("isBusy", false)
-      )
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .take(100);
-
     const all = await ctx.db.query("staff").take(200);
-    const secondary = all.filter(
-      (s) =>
-        s.isActive &&
-        !s.isBusy &&
-        s.role !== args.role &&
-        s.secondaryRoles?.includes(args.role)
+    const active = all.filter((s) => s.isActive && !s.isBusy);
+    const primary = active.filter((s) => s.role === args.role);
+    const secondary = active.filter(
+      (s) => s.role !== args.role && s.secondaryRoles?.includes(args.role)
     );
-
-    const seen = new Set(primary.map((s) => s._id));
-    return [...primary, ...secondary.filter((s) => !seen.has(s._id))];
+    return [...primary, ...secondary];
   },
 });
 

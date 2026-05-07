@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { Card, CardContent } from "@/components/ui/card";
 
-type Order = Doc<"orders">;
+type Order = Omit<Doc<"orders">, "maleMeasurements" | "femaleMeasurements">;
 
 const container = {
   hidden: { opacity: 0 },
@@ -84,7 +84,7 @@ function DueOrderRow({ order }: { order: Order }) {
 }
 
 export default function DueOrdersPage() {
-  const orders = useQuery(api.orders.listAll);
+  const orders = useQuery(api.orders.listAllSummaries);
   const today = new Date();
 
   if (orders === undefined) return <DueOrdersLoading />;

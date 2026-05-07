@@ -65,13 +65,6 @@ export const list = query({
   },
 });
 
-export const listAll = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("orders").order("desc").collect();
-  },
-});
-
 export const getById = query({
   args: { orderId: v.id("orders") },
   handler: async (ctx, args) => {
@@ -249,6 +242,67 @@ export const getFabricPhotoUrl = query({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, args) => {
     return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
+export const getFabricPhotoUrls = query({
+  args: { storageIds: v.array(v.id("_storage")) },
+  handler: async (ctx, args) => {
+    const result: Record<string, string | null> = {};
+    for (const id of args.storageIds) {
+      result[id] = await ctx.storage.getUrl(id);
+    }
+    return result;
+  },
+});
+
+// Returns all orders without measurement fields — same reads as listAll but
+// ~90% smaller payload since measurements are omitted from the response.
+export const listAllSummaries = query({
+  args: {},
+  handler: async (ctx) => {
+    const orders = await ctx.db.query("orders").order("desc").take(2000);
+    return orders.map(({ maleMeasurements: _m, femaleMeasurements: _f, ...summary }) => summary);
+  },
+});
+
+// Paginated version of listAllSummaries — use this when you only need the
+// current page (e.g. a dedicated orders list page).
+export const listOrderSummaries = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("orders")
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return {
+      ...page,
+      page: page.page.map(({ maleMeasurements: _m, femaleMeasurements: _f, ...summary }) => summary),
+    };
+  },
+});
+
+// Lightweight stats for the dashboard — returns only counts, not documents.
+export const getOrderStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const dueThreshold = now + 4 * 24 * 60 * 60 * 1000;
+    const all = await ctx.db.query("orders").take(2000);
+    let total = 0, pending = 0, inProgress = 0, completed = 0, collected = 0, due = 0;
+    for (const o of all) {
+      total++;
+      if (o.status === "pending") pending++;
+      else if (o.status === "in_progress" || o.status === "ready_for_qc") inProgress++;
+      else if (o.status === "completed") completed++;
+      else if (o.status === "collected") collected++;
+      if (
+        o.status !== "collected" &&
+        o.status !== "completed" &&
+        o.collectionDate <= dueThreshold
+      ) due++;
+    }
+    return { total, pending, inProgress, completed, collected, due };
   },
 });
 

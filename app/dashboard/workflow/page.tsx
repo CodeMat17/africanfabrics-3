@@ -37,7 +37,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type Order = Doc<"orders">;
+type Order = Omit<Doc<"orders">, "maleMeasurements" | "femaleMeasurements">;
 type Staff = Doc<"staff">;
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -382,7 +382,7 @@ function StagePagination({ orders, page, onPage }: { orders: Order[]; page: numb
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function WorkflowPage() {
-  const orders = useQuery(api.orders.listAll);
+  const orders = useQuery(api.orders.listAllSummaries);
   const staff = useQuery(api.staff.list, {});
 
   const assignStaff = useMutation(api.workflow.assignStaff);

@@ -13,10 +13,11 @@ import {
 import DashboardLoading from "./loading";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { format, isBefore, addDays } from "date-fns";
+import { format } from "date-fns";
 
 const container = {
   hidden: { opacity: 0 },
@@ -29,26 +30,12 @@ const item = {
 };
 
 export default function DashboardPage() {
-  const orders = useQuery(api.orders.listAll);
-  const today = new Date();
+  const stats = useQuery(api.orders.getOrderStats);
+  const recentPage = useQuery(api.orders.list, {
+    paginationOpts: { numItems: 5, cursor: null },
+  });
 
-  if (orders === undefined) return <DashboardLoading />;
-
-  const stats = {
-    total: orders.length,
-    pending: orders.filter((o) => o.status === "pending").length,
-    due: orders.filter(
-      (o) =>
-        o.status !== "collected" &&
-        o.status !== "completed" &&
-        isBefore(new Date(o.collectionDate), addDays(today, 4))
-    ).length,
-    completed: orders.filter((o) => o.status === "completed").length,
-    collected: orders.filter((o) => o.status === "collected").length,
-    inProgress: orders.filter(
-      (o) => o.status === "in_progress" || o.status === "ready_for_qc"
-    ).length,
-  };
+  if (stats === undefined || recentPage === undefined) return <DashboardLoading />;
 
   const cards = [
     {
@@ -101,9 +88,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const recentOrders = [...orders]
-    .sort((a, b) => b._creationTime - a._creationTime)
-    .slice(0, 5);
+  const recentOrders = recentPage.page as Doc<"orders">[];
 
   const statusColors: Record<string, string> = {
     pending: "bg-primary/15 text-primary dark:bg-primary/20",

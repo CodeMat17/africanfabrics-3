@@ -46,7 +46,8 @@ import {
 import Image from "next/image";
 import OrdersLoading from "./loading";
 
-type Order = Doc<"orders">;
+type Order = Omit<Doc<"orders">, "maleMeasurements" | "femaleMeasurements">;
+type FullOrder = Doc<"orders">;
 type Staff = Doc<"staff">;
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -97,9 +98,7 @@ const FEMALE_MEASUREMENT_LABELS: Record<string, string> = {
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
-function FabricImage({ storageId }: { storageId: Id<"_storage"> }) {
-  const url = useQuery(api.orders.getFabricPhotoUrl, { storageId });
-  if (!url) return null;
+function FabricImage({ url }: { url: string }) {
   return (
     <div className="relative w-full h-48 rounded-xl overflow-hidden bg-muted">
       <Image src={url} alt="Fabric photo" fill className="object-cover" sizes="(max-width: 640px) 100vw, 480px" />
@@ -107,9 +106,7 @@ function FabricImage({ storageId }: { storageId: Id<"_storage"> }) {
   );
 }
 
-function FabricThumbnail({ storageId }: { storageId: Id<"_storage"> }) {
-  const url = useQuery(api.orders.getFabricPhotoUrl, { storageId });
-  if (!url) return null;
+function FabricThumbnail({ url }: { url: string }) {
   return (
     <div className="relative w-10 h-10 rounded-md overflow-hidden bg-muted mb-3">
       <Image src={url} alt="Fabric thumbnail" fill className="object-cover" sizes="40px" />
@@ -135,7 +132,7 @@ function StaffBadge({ staffId, staff, role }: { staffId?: Id<"staff">; staff: St
 
 // ─── order detail content (view-only, workflow managed on Workflow page) ──────
 
-function OrderDetailContent({ order, staff }: { order: Order; staff: Staff[] }) {
+function OrderDetailContent({ order, staff, fabricUrl }: { order: FullOrder; staff: Staff[]; fabricUrl?: string | null }) {
   const collectionDate = new Date(order.collectionDate);
   const daysUntilDue = differenceInDays(collectionDate, new Date());
   const isOverdue = daysUntilDue < 0 && order.status !== "collected" && order.status !== "completed";
@@ -210,12 +207,12 @@ function OrderDetailContent({ order, staff }: { order: Order; staff: Staff[] }) 
       </section>
 
       {/* Fabric photo */}
-      {order.fabricPhotoStorageId && (
+      {fabricUrl && (
         <section aria-labelledby="detail-fabric-heading">
           <h3 id="detail-fabric-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
             Fabric Photo
           </h3>
-          <FabricImage storageId={order.fabricPhotoStorageId} />
+          <FabricImage url={fabricUrl} />
         </section>
       )}
 
@@ -278,10 +275,11 @@ function OrderDetailContent({ order, staff }: { order: Order; staff: Staff[] }) 
 
 // ─── order card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, staff, onViewDetails }: {
+function OrderCard({ order, staff, onViewDetails, fabricUrl }: {
   order: Order;
   staff: Staff[];
   onViewDetails: (orderId: Id<"orders">) => void;
+  fabricUrl?: string | null;
 }) {
   const markCollected = useMutation(api.workflow.markCollected);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -322,8 +320,8 @@ function OrderCard({ order, staff, onViewDetails }: {
             </div>
             <div className="flex items-center gap-3">
               <div className="shrink-0">
-                {order.fabricPhotoStorageId ? (
-                  <FabricThumbnail storageId={order.fabricPhotoStorageId} />
+                {fabricUrl ? (
+                  <FabricThumbnail url={fabricUrl} />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground">
                     {order.clientName?.charAt(0).toUpperCase()}
@@ -448,16 +446,21 @@ const filterLabels: Record<string, string> = {
 const PAGE_SIZE = 20;
 
 export default function OrdersPage() {
-  const orders = useQuery(api.orders.listAll);
+  const orders = useQuery(api.orders.listAllSummaries);
   const staff = useQuery(api.staff.list, {});
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "all">("all");
   const [detailOrderId, setDetailOrderId] = useState<Id<"orders"> | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  if (orders === undefined || staff === undefined) return <OrdersLoading />;
+  // Fetch full order (with measurements) only when detail sheet is open
+  const detailOrder = useQuery(
+    api.orders.getById,
+    detailOrderId ? { orderId: detailOrderId } : "skip"
+  );
 
-  const filtered = orders.filter((o) => {
+  // Collect all storageIds on the current page to batch-fetch URLs
+  const filtered = (orders ?? []).filter((o) => {
     const matchesSearch =
       o.clientName.toLowerCase().includes(search.toLowerCase()) ||
       o.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -469,7 +472,26 @@ export default function OrdersPage() {
   const safePage = Math.min(currentPage, totalPages);
   const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const liveDetailOrder = detailOrderId ? (orders.find((o) => o._id === detailOrderId) ?? null) : null;
+  const storageIds = paginated
+    .map((o) => o.fabricPhotoStorageId)
+    .filter((id): id is Id<"_storage"> => id !== undefined);
+
+  const photoUrls = useQuery(
+    api.orders.getFabricPhotoUrls,
+    storageIds.length > 0 ? { storageIds } : "skip"
+  );
+
+  // Detail sheet photo URL (if order has fabric photo)
+  const detailStorageId = detailOrder?.fabricPhotoStorageId;
+  const detailPhotoUrlResult = useQuery(
+    api.orders.getFabricPhotoUrls,
+    detailStorageId ? { storageIds: [detailStorageId] } : "skip"
+  );
+  const detailFabricUrl = detailStorageId
+    ? (detailPhotoUrlResult?.[detailStorageId] ?? null)
+    : null;
+
+  if (orders === undefined || staff === undefined) return <OrdersLoading />;
 
   return (
     <>
@@ -479,6 +501,7 @@ export default function OrdersPage() {
             <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
             <p className="text-muted-foreground mt-1">{orders.length} total order{orders.length !== 1 && "s"}</p>
           </div>
+
         </motion.div>
 
         {/* Search + Filter */}
@@ -521,7 +544,13 @@ export default function OrdersPage() {
           ) : (
             <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {paginated.map((order) => (
-                <OrderCard key={order._id} order={order} staff={staff} onViewDetails={setDetailOrderId} />
+                <OrderCard
+                  key={order._id}
+                  order={order}
+                  staff={staff}
+                  onViewDetails={setDetailOrderId}
+                  fabricUrl={order.fabricPhotoStorageId ? (photoUrls?.[order.fabricPhotoStorageId] ?? null) : null}
+                />
               ))}
             </motion.div>
           )}
@@ -544,23 +573,23 @@ export default function OrdersPage() {
       {/* Order detail sheet — view only; workflow actions live on the Workflow page */}
       <Sheet open={!!detailOrderId} onOpenChange={(open) => { if (!open) setDetailOrderId(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col overflow-hidden p-0">
-          {liveDetailOrder && (
+          {detailOrder && (
             <>
               <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60 shrink-0">
                 <div className="flex items-center gap-3">
                   <div aria-hidden="true" className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                    {liveDetailOrder.clientName.charAt(0)}
+                    {detailOrder.clientName.charAt(0)}
                   </div>
                   <div>
-                    <SheetTitle className="text-left leading-tight">{liveDetailOrder.clientName}</SheetTitle>
+                    <SheetTitle className="text-left leading-tight">{detailOrder.clientName}</SheetTitle>
                     <SheetDescription className="text-left font-mono text-xs mt-0.5">
-                      {liveDetailOrder.orderNumber} &middot; {liveDetailOrder.garmentType}
+                      {detailOrder.orderNumber} &middot; {detailOrder.garmentType}
                     </SheetDescription>
                   </div>
                 </div>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-6">
-                <OrderDetailContent order={liveDetailOrder} staff={staff} />
+                <OrderDetailContent order={detailOrder} staff={staff} fabricUrl={detailFabricUrl} />
               </div>
             </>
           )}

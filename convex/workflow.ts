@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { Id } from "./_generated/dataModel";
 
 const workflowStageValidator = v.union(
@@ -14,24 +15,24 @@ const workflowStageValidator = v.union(
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 export const getEventsByOrder = query({
-  args: { orderId: v.id("orders") },
+  args: { orderId: v.id("orders"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("workflowEvents")
       .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
       .order("asc")
-      .take(200);
+      .paginate(args.paginationOpts);
   },
 });
 
 export const getEventsByStaff = query({
-  args: { staffId: v.id("staff") },
+  args: { staffId: v.id("staff"), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("workflowEvents")
       .withIndex("by_staff", (q) => q.eq("staffId", args.staffId))
       .order("desc")
-      .take(100);
+      .paginate(args.paginationOpts);
   },
 });
 
