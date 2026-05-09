@@ -157,17 +157,67 @@ export default function NewOrderPage() {
       ? formData.maleMeasurements
       : formData.femaleMeasurements;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<File> =>
+    new Promise((resolve, reject) => {
+      const MAX_BYTES = 150 * 1024;
+      const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const canvas = document.createElement("canvas");
+        // Scale down if the image is very large to help compression
+        const MAX_DIM = 1600;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mime = "image/jpeg";
+        let quality = 0.85;
+        const tryCompress = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) return reject(new Error("Compression failed"));
+              if (blob.size <= MAX_BYTES || quality <= 0.1) {
+                resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: mime }));
+              } else {
+                quality = Math.max(0.1, quality - 0.1);
+                tryCompress();
+              }
+            },
+            mime,
+            quality
+          );
+        };
+        tryCompress();
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Failed to load image")); };
+      img.src = objectUrl;
+    });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFabricFile(file);
     setIsCompressing(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      updateFormData("fabricPhotoPreview", reader.result as string);
+    try {
+      const compressed = await compressImage(file);
+      setFabricFile(compressed);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateFormData("fabricPhotoPreview", reader.result as string);
+        setIsCompressing(false);
+      };
+      reader.readAsDataURL(compressed);
+    } catch {
+      toast.error("Failed to process image. Please try another file.");
       setIsCompressing(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const removePhoto = () => {
@@ -597,7 +647,7 @@ export default function NewOrderPage() {
                                 Click to upload fabric photo
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                PNG, JPG up to 10MB
+                                PNG, JPG — auto-compressed to 150 KB
                               </p>
                             </>
                           )}

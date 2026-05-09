@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -15,9 +14,9 @@ function NeedleIcon() {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 512 512"
-      width="40"
-      height="40"
-      className="shrink-0 rounded-full"
+      width="44"
+      height="44"
+      className="shrink-0 rounded-full shadow-md"
       aria-hidden="true">
       <circle cx="256" cy="256" r="256" fill="#009f3b" />
       <path
@@ -73,63 +72,19 @@ function isInstalled(): boolean {
 }
 
 export function PwaInstallPrompt() {
+  const [visible, setVisible] = useState(false);
+  const [animateOut, setAnimateOut] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+
   useEffect(() => {
     if (isInstalled()) return;
     if (localStorage.getItem(DISMISSED_KEY)) return;
 
-    let deferredPrompt: BeforeInstallPromptEvent | null = null;
-
-    const handleInstall = async (toastId: string | number) => {
-      if (!deferredPrompt) return;
-      toast.dismiss(toastId);
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      localStorage.setItem(DISMISSED_KEY, "1");
-      deferredPrompt = null;
-    };
-
-    const handleDismiss = (toastId: string | number) => {
-      toast.dismiss(toastId);
-      localStorage.setItem(DISMISSED_KEY, "1");
-    };
-
-    const showToast = () => {
-      const id = toast.custom(
-        (toastId) => (
-          <div className="flex items-start gap-3 w-full rounded-xl border border-emerald-200 bg-white dark:bg-zinc-900 dark:border-emerald-800 shadow-lg px-4 py-3">
-            <NeedleIcon />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 leading-tight">
-                Install AFD Guru
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">
-                Add to your home screen for the best tailoring management
-                experience — fast, full-screen, always ready.
-              </p>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => handleInstall(toastId)}
-                  className="flex-1 rounded-lg bg-[#009f3b] hover:bg-[#007d2e] active:bg-[#005f22] text-white text-xs font-semibold py-1.5 px-3 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#009f3b]">
-                  Install
-                </button>
-                <button
-                  onClick={() => handleDismiss(toastId)}
-                  className="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs font-medium py-1.5 px-3 transition-colors duration-150">
-                  Not now
-                </button>
-              </div>
-            </div>
-          </div>
-        ),
-        { duration: Infinity, position: "bottom-right" }
-      );
-      return id;
-    };
-
     const onBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      deferredPrompt = e as BeforeInstallPromptEvent;
-      showToast();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setVisible(true);
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -138,5 +93,95 @@ export function PwaInstallPrompt() {
     };
   }, []);
 
-  return null;
+  const dismiss = () => {
+    setAnimateOut(true);
+    localStorage.setItem(DISMISSED_KEY, "1");
+    setTimeout(() => setVisible(false), 400);
+  };
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    dismiss();
+    await deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <style>{`
+        @keyframes pwa-slide-up {
+          from { opacity: 0; transform: translateY(24px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)   scale(1);    }
+        }
+        @keyframes pwa-slide-down {
+          from { opacity: 1; transform: translateY(0)   scale(1);    }
+          to   { opacity: 0; transform: translateY(24px) scale(0.97); }
+        }
+        .pwa-card-enter { animation: pwa-slide-up   0.38s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .pwa-card-exit  { animation: pwa-slide-down 0.35s cubic-bezier(0.4,0,0.2,1)      forwards; }
+        @keyframes pwa-pulse-ring {
+          0%   { box-shadow: 0 0 0 0   rgba(0,159,59,0.35); }
+          70%  { box-shadow: 0 0 0 10px rgba(0,159,59,0);    }
+          100% { box-shadow: 0 0 0 0   rgba(0,159,59,0);     }
+        }
+        .pwa-install-btn { animation: pwa-pulse-ring 2.2s ease-out infinite; }
+      `}</style>
+
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-label="Install AFD Guru"
+        className={`fixed bottom-5 right-4 z-9999 w-[calc(100vw-2rem)] max-w-sm ${animateOut ? "pwa-card-exit" : "pwa-card-enter"}`}>
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-2xl dark:border-emerald-900/60 dark:bg-zinc-900">
+          {/* green top accent bar */}
+          <div className="h-1 w-full bg-linear-to-r from-[#009f3b] via-[#00c44a] to-[#007d2e]" />
+
+          {/* close button */}
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss"
+            className="absolute right-3 top-3 rounded-full p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M1 1l12 12M13 1L1 13"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+
+          <div className="flex items-start gap-3.5 px-4 pb-4 pt-3.5">
+            <NeedleIcon />
+
+            <div className="flex-1 min-w-0 pt-0.5">
+              <p className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                Install AFD Guru
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Add to your home screen for the best tailoring management
+                experience — fast, full-screen, always ready.
+              </p>
+
+              <div className="mt-3.5 flex gap-2">
+                <button
+                  onClick={handleInstall}
+                  className="pwa-install-btn flex-1 rounded-xl bg-[#009f3b] px-3 py-2 text-xs font-semibold text-white transition-colors duration-150 hover:bg-[#007d2e] active:bg-[#005f22] focus-visible:outline-2 focus-visible:outline-[#009f3b]">
+                  Install app
+                </button>
+                <button
+                  onClick={dismiss}
+                  className="flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition-colors duration-150 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
